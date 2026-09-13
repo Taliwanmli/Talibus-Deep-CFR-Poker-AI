@@ -1197,12 +1197,26 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("--early-stop-threshold must be >= 0")
 
 
+def derive_initialization_seed(base_seed: int, label: str) -> int:
+    """Stable per-network streams, following the orchestration's XOR convention."""
+    salts = {
+        "advantage_p0": 0xF135_7AEA,
+        "advantage_p1": 0xA24B_AED4,
+        "strategy": 0x5F35_9ACD,
+        "advantage_shared": 0x9E37_79B9,
+        "strategy_shared": 0x94D0_49BB,
+    }
+    return base_seed ^ salts[label]
+
+
 def train_init_model(
     train_script: Path,
     script_dir: Path,
     advantage_onnx: Path,
     advantage_state: Path,
     args: argparse.Namespace,
+    *,
+    init_seed: int,
 ) -> None:
     command = [
         sys.executable,
@@ -1214,7 +1228,7 @@ def train_init_model(
         "--type",
         "advantage",
         "--seed",
-        str(args.seed),
+        str(init_seed),
         "--device",
         args.device,
         "--onnx-opset",
@@ -1611,6 +1625,8 @@ def initialize_training_context(
     onnx_path: Path,
     args: argparse.Namespace,
     device: torch.device,
+    *,
+    init_seed: int,
 ) -> NetworkTrainingContext:
     cfg = ModelConfig(
         input_dim=INPUT_DIM,
@@ -1619,7 +1635,12 @@ def initialize_training_context(
         max_actions=MAX_ACTIONS,
         dropout_p=args.dropout_p,
     )
-    model = DeepCfrNet(cfg).to(device)
+    # Parameters are constructed on CPU before transfer. Seed only that generator,
+    # preserving ambient CPU RNG state without reseeding CUDA or other devices.
+    with torch.random.fork_rng(devices=[]):
+        torch.random.default_generator.manual_seed(init_seed)
+        model = DeepCfrNet(cfg)
+    model = model.to(device)
     loaded = load_model_weights(model, state_path, device)
     log(
         f"[deep-cfr] {label} model init="
@@ -4144,7 +4165,10 @@ def run_shared_multiseat_pipeline(args: argparse.Namespace, paths: dict[str, Pat
         if args.resume and completed_before > 0:
             raise FileNotFoundError(f"--resume requested but missing model: {advantage_onnx}")
         log("[init] generating initial random shared advantage ONNX model...")
-        train_init_model(train_script, script_dir, advantage_onnx, advantage_state, args)
+        train_init_model(
+            train_script, script_dir, advantage_onnx, advantage_state, args,
+            init_seed=derive_initialization_seed(args.seed, "advantage_shared"),
+        )
     else:
         log(f"[init] using existing shared advantage model: {advantage_onnx}")
 
@@ -4164,6 +4188,7 @@ def run_shared_multiseat_pipeline(args: argparse.Namespace, paths: dict[str, Pat
         onnx_path=advantage_onnx,
         args=args,
         device=device,
+        init_seed=derive_initialization_seed(args.seed, "advantage_shared"),
     )
     strategy_context: NetworkTrainingContext | None = None
     if args.strategy_every > 0:
@@ -4175,6 +4200,7 @@ def run_shared_multiseat_pipeline(args: argparse.Namespace, paths: dict[str, Pat
             onnx_path=strategy_onnx,
             args=args,
             device=device,
+            init_seed=derive_initialization_seed(args.seed, "strategy_shared"),
         )
 
     write_json(metrics_path, metrics)
@@ -5291,7 +5317,10 @@ def main() -> None:
                 f"--resume requested but missing model: {advantage_p0_onnx}"
             )
         log("[init] generating initial random advantage_p0 ONNX model...")
-        train_init_model(train_script, script_dir, advantage_p0_onnx, advantage_p0_state, args)
+        train_init_model(
+            train_script, script_dir, advantage_p0_onnx, advantage_p0_state, args,
+            init_seed=derive_initialization_seed(args.seed, "advantage_p0"),
+        )
     else:
         log(f"[init] using existing advantage model: {advantage_p0_onnx}")
 
@@ -5301,7 +5330,10 @@ def main() -> None:
                 f"--resume requested but missing model: {advantage_p1_onnx}"
             )
         log("[init] generating initial random advantage_p1 ONNX model...")
-        train_init_model(train_script, script_dir, advantage_p1_onnx, advantage_p1_state, args)
+        train_init_model(
+            train_script, script_dir, advantage_p1_onnx, advantage_p1_state, args,
+            init_seed=derive_initialization_seed(args.seed, "advantage_p1"),
+        )
     else:
         log(f"[init] using existing advantage model: {advantage_p1_onnx}")
 
@@ -5326,6 +5358,7 @@ def main() -> None:
         onnx_path=advantage_p0_onnx,
         args=args,
         device=device,
+        init_seed=derive_initialization_seed(args.seed, "advantage_p0"),
     )
     advantage_context_p1 = initialize_training_context(
         label="advantage_p1",
@@ -5335,6 +5368,7 @@ def main() -> None:
         onnx_path=advantage_p1_onnx,
         args=args,
         device=device,
+        init_seed=derive_initialization_seed(args.seed, "advantage_p1"),
     )
     strategy_context: NetworkTrainingContext | None = None
     if args.strategy_every > 0:
@@ -5346,6 +5380,7 @@ def main() -> None:
             onnx_path=strategy_onnx,
             args=args,
             device=device,
+            init_seed=derive_initialization_seed(args.seed, "strategy"),
         )
 
     run_started = time.perf_counter()
