@@ -123,6 +123,70 @@ A full 6-max run requires compiled Rust traversal binaries, cluster assets,
 and a writable `data/` directory. Use small smoke settings first before
 starting a long run.
 
+## Preparing An Experiment Manifest
+
+After installing the Python training dependencies, run from the repository root:
+
+```bash
+python training/deep_cfr/experiment.py --config training/deep_cfr/experiments/example.json --run-id example-preparation
+```
+
+This prints a versioned JSON manifest to stdout. It validates the input, expands
+supported model defaults/constants, selects a device using the existing device
+resolver, and collects Git and Python environment evidence. The small example
+explicitly requests CPU and one worker. `phase` is always `prepared` and
+`artifacts` is empty for this command.
+
+The command creates no output directory or artifact. It does not launch
+traversal, train a model, export ONNX, load Rust runtime models, or evaluate
+poker. It requires neither compiled Rust binaries nor CUDA. The example's small
+budgets are illustrative settings, not evidence of training quality or a tested
+end-to-end smoke experiment. Existing training/evaluation CLIs do not yet consume
+the new configuration.
+
+Optional overrides are `--seed` and `--output-dir` (a portable run-relative
+path). `--run-root` binds local artifact storage, including storage outside the
+checkout; it defaults to `data/experiments` under the repository. `--repo-root`
+defaults to the checkout inferred from the script location. Neither absolute
+binding is serialized. For example, supply `--run-root "<local-artifact-root>"`
+using your actual local directory without editing the JSON configuration.
+
+The example's output reference is `run:example`, relative to that storage root.
+Automatic worker selection is also representable with `workers: 0`; the manifest
+retains it as `requested_workers: 0`, without predicting an actual worker count.
+An unavailable Git checkout yields explicit null provenance and a reason.
+
+To write the exact canonical UTF-8 bytes independently of shell redirection
+encoding, capture stdout with Python. Run this from the repository root:
+
+```python
+import subprocess
+import sys
+from pathlib import Path
+
+result = subprocess.run(
+    [sys.executable, "training/deep_cfr/experiment.py", "--config",
+     "training/deep_cfr/experiments/example.json", "--run-id", "example-preparation"],
+    check=True, capture_output=True,
+)
+destination = Path("data/experiments/example/manifest.json")
+destination.parent.mkdir(parents=True, exist_ok=True)
+destination.write_bytes(result.stdout)
+```
+
+This captures provenance before creating the output file/directory. The caller
+chooses whether and where to save the manifest.
+
+Focused checks:
+
+```bash
+python -m unittest discover -s training/deep_cfr -p "test_experiment.py" -v
+python -m unittest discover -s training/deep_cfr -p "test_provenance.py" -v
+```
+
+See [the architecture contract](architecture.md#experiment-configuration-and-preparation-provenance)
+for field meanings, root bindings, unavailable evidence, and determinism limits.
+
 ## Evaluation Entry Point
 
 The main evaluation suite is:

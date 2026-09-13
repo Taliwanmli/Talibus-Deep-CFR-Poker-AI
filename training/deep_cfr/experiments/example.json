@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "example",
+  "seed": 42,
+  "game": {"num_players": 2, "starting_stack": 2000, "small_blind": 10, "big_blind": 20},
+  "run": {"iterations": 1, "strategy_every": 1},
+  "model": {"hidden_dim": 32, "bottleneck_dim": 16, "dropout_p": 0.1},
+  "traversal": {"traversals": 8, "deck_samples": 8, "workers": 1, "progress_batch": 8,
+                "seat_chunks": 1, "consolidate_processes": false},
+  "training": {"training_steps": 2, "batch_size": 8, "lr": 0.0005, "weight_decay": 0.0001,
+               "buffer_size": 64, "max_sample_reuse_per_iter": 6.0, "adv_huber_delta": 20.0},
+  "execution": {"device": "cpu"},
+  "export": {"onnx_opset": 17},
+  "paths": {"cluster_dir": {"root": "repo", "path": "checkpoints/nlhe_clusters"},
+            "output_dir": {"root": "run", "path": "example"}}
+}
