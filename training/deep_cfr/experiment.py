@@ -142,6 +142,16 @@ class TrainingConfig:
 
 
 @dataclass(frozen=True)
+class EvaluationConfig:
+    hands: int
+    deck_samples: int
+    workers: int
+    opponent: str
+    seed: int
+    model_seat: int
+
+
+@dataclass(frozen=True)
 class ExperimentConfig:
     schema_version: int
     name: str
@@ -155,6 +165,7 @@ class ExperimentConfig:
     onnx_opset: int
     cluster_dir: PathRef
     output_dir: PathRef
+    evaluation: EvaluationConfig | None = None
 
     def to_dict(self) -> dict[str, Any]:
         obj = asdict(self)
@@ -162,6 +173,8 @@ class ExperimentConfig:
         obj["execution"] = {"device": obj.pop("device")}
         obj["export"] = {"onnx_opset": obj.pop("onnx_opset")}
         obj["paths"] = {key: obj.pop(key) for key in ("cluster_dir", "output_dir")}
+        if self.evaluation is None:
+            obj.pop("evaluation")
         return obj
 
 
@@ -169,7 +182,7 @@ def parse_config(value: Any) -> ExperimentConfig:
     obj = _object(value, "config", {
         "schema_version", "name", "seed", "game", "run", "model", "traversal",
         "training", "execution", "export", "paths",
-    })
+    }, {"evaluation"})
     _int(obj["schema_version"], "schema_version", 1, 1)
     name = obj["name"]
     if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", name):
@@ -215,9 +228,19 @@ def parse_config(value: Any) -> ExperimentConfig:
     refs = {key: PathRef.parse(value, f"paths.{key}") for key, value in paths.items()}
     if refs["output_dir"].root != "run":
         raise ValueError("paths.output_dir.root must be run")
+    evaluation = None
+    if "evaluation" in obj:
+        settings = dict(_object(obj["evaluation"], "evaluation", set(EvaluationConfig.__dataclass_fields__)))
+        for field in ("hands", "deck_samples", "workers"):
+            _int(settings[field], f"evaluation.{field}", low=0 if field == "workers" else 1)
+        _int(settings["seed"], "evaluation.seed", 0, 2**32 - 1)
+        _int(settings["model_seat"], "evaluation.model_seat", 0, game.num_players - 1)
+        if settings["opponent"] not in ("tag", "random", "calling-station", "lag", "nit"):
+            raise ValueError("evaluation.opponent must be tag, random, calling-station, lag or nit")
+        evaluation = EvaluationConfig(**settings)
     return ExperimentConfig(1, name, seed, game, RunConfig(**groups["run"]),
                             ModelSettings(**model), traversal, TrainingConfig(**groups["training"]),
-                            device, opset, **refs)
+                            device, opset, **refs, evaluation=evaluation)
 
 
 def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:

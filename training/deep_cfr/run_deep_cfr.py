@@ -702,6 +702,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--big-blind", type=int, default=20)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument(
+        "--keep-samples", action="store_true",
+        help="Retain generated binary samples for inspection (shared multiseat runs).",
+    )
     parser.add_argument("--log-every", type=int, default=600)
     parser.add_argument("--device", choices=["auto", "cuda", "cpu"], default="auto")
     parser.add_argument("--onnx-opset", type=int, default=17)
@@ -4391,7 +4395,8 @@ def run_shared_multiseat_pipeline(args: argparse.Namespace, paths: dict[str, Pat
                 seed=advantage_seed,
                 device=device,
             )
-            safe_delete(merged_adv_path)
+            if not args.keep_samples:
+                safe_delete(merged_adv_path)
             train_time = time.perf_counter() - train_started
             advantage_loss = advantage_train.final_loss
 
@@ -4418,7 +4423,8 @@ def run_shared_multiseat_pipeline(args: argparse.Namespace, paths: dict[str, Pat
                     strategy_loss = strategy_train.final_loss
                     strategy_trained = True
             if merged_strategy_path is not None:
-                safe_delete(merged_strategy_path)
+                if not args.keep_samples:
+                    safe_delete(merged_strategy_path)
 
             diagnostics_report: dict[str, Any] | None = None
             if args.league_eval_every > 0 and iteration % args.league_eval_every == 0:

@@ -42,6 +42,7 @@ jobs:
           python run_eval_suite.py --help
           python -m eval.run_league --help
           python training/deep_cfr/run_deep_cfr.py --help
+          python training/deep_cfr/run_smoke.py --help
 
       - name: Run evaluation tests
         run: python -m unittest discover eval
