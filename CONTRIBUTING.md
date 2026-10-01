@@ -27,21 +27,35 @@ tool.
 From the repository root:
 
 ```bash
-python -m compileall -q .
+python -m pip check
+python -m compileall -q training/deep_cfr eval run_eval_suite.py
 python -m unittest discover eval
+python -m unittest discover -s training/deep_cfr -p "test_*.py"
 python run_eval_suite.py --help
+python -m eval.run_league --help
+python training/deep_cfr/run_deep_cfr.py --help
+python training/deep_cfr/run_smoke.py --help
 ```
 
 From `solver/`:
 
 ```bash
-cargo check --workspace
-cargo test -p cfr
-cargo test -p abstraction
+cargo +stable fmt --all -- --check
+cargo +stable clippy --workspace --all-targets --locked
+cargo +stable test --workspace --locked
 ```
 
-Some checks may require local toolchain setup, ONNX Runtime availability, or
-generated artifacts that are intentionally not committed.
+These commands match the source, CLI, and unit checks in the Python/Rust CI
+workflows. For a real CPU integration check after installing both Python
+requirement files, run from the repository root:
+
+```bash
+python training/deep_cfr/run_smoke.py
+```
+
+See [CPU Smoke Experiment](docs/smoke.md) for generated artifacts and
+reproducibility limits. The full smoke is separate from normal CI because it
+requires export/runtime dependencies and a Rust release build.
 
 ## Suggested Contribution Areas
 

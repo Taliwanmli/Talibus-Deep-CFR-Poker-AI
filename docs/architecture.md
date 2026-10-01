@@ -13,6 +13,7 @@ flowchart LR
     D --> E[ONNX Export]
     E --> F[Rust Runtime Inference]
     F --> G[Depth-Limited Search]
+    F --> H[Evaluation Harness]
     G --> H[Evaluation Harness]
     H --> I[Result Packs]
 ```
@@ -20,6 +21,12 @@ flowchart LR
 This diagram shows the research pipeline used inside the repository. The
 runtime/search pieces are for simulator evaluation and experimentation; they
 are not a live-play assistant or poker-site automation system.
+
+The [CPU smoke workflow](smoke.md) follows the same traversal, training,
+export, and Rust inference components, then runs model-only evaluation. It
+does not invoke depth-limited search. Experiment configuration supplies the
+settings; a run directory holds samples, models, results, and execution
+provenance.
 
 ## Game And Abstraction
 
@@ -58,15 +65,18 @@ samples.
 
 `training/deep_cfr/experiment.py` provides a small versioned JSON contract for
 core fresh-run settings. `provenance.py` collects preparation evidence. These
-modules do not launch the pipeline or migrate existing training, evaluation,
-result-pack, bundle, or release formats.
+modules themselves do not launch the pipeline. `run_smoke.py` consumes their
+validated configuration and preparation manifest, invokes the existing
+training/evaluation entry points, and records completed or failed execution.
+Existing long-run result-pack, bundle, and release formats remain separate.
 
 The three representations have distinct meanings:
 
 1. **Input configuration** records intent. The checked-in
-   `training/deep_cfr/experiments/example.json` illustrates all groups below.
-2. **Resolved configuration** records validated settings a future consumer is
-   prepared to use, after explicit overrides and supported defaults. It does
+   `training/deep_cfr/experiments/example.json` illustrates the core groups;
+   `cpu_smoke.json` also supplies evaluation settings.
+2. **Resolved configuration** records validated settings a consumer can use,
+   after explicit overrides and supported defaults. It does
    not establish that any setting was used by an executed workload.
 3. **Preparation manifest** embeds the resolved configuration and records a
    caller-supplied `run_id`, `phase: "prepared"`, UTC timestamp, Git evidence,
@@ -86,9 +96,12 @@ versions and unknown fields fail; there is no migration or extension-field bag.
 | `training` | `training_steps`, `batch_size`, `lr`, `weight_decay`, `buffer_size`, `max_sample_reuse_per_iter`, `adv_huber_delta` |
 | `execution` | `device` |
 | `export` | `onnx_opset` |
+| Optional `evaluation` | `hands`, `deck_samples`, `workers`, `opponent`, `seed`, `model_seat` |
 | `paths` | `cluster_dir`, `output_dir`, each containing `root` and `path` |
 
-Every group and field is required except the three individual model settings.
+Every core group and field is required except the three individual model
+settings. `evaluation` is optional for preparation, and all its fields are
+required when present. The CPU smoke requires it explicitly.
 Omitted model settings use `model.ModelConfig`; the resolved form always contains
 them, plus canonical `input_dim` and `max_actions`. Input files cannot override
 those dimensions. The example spells out model settings explicitly.
@@ -113,11 +126,11 @@ It is a preparation observation, not evidence that the device ran training.
 
 Resolved traversal settings rename `workers` to `requested_workers`, preserving
 zero and explicit counts even when Rust may later clamp them. No actual worker
-count is predicted. A future execution consumer must record observed workers,
-effective batch/step counts, derived subprocess seeds, and additional execution
-parameters when applicable. Current training/evaluation CLIs do not consume this
-configuration. Resume, diagnostic selection, GPU batching, and evaluation/search
-options are outside this first contract.
+count is predicted by preparation. The CPU smoke pins one worker, records
+subprocess commands/logs, actual sample/step counts, and derived seeds. General
+training/evaluation CLIs retain flag-based interfaces; the smoke wrapper maps
+the configuration into those flags. Resume, diagnostic selection, GPU batching,
+and depth-limited search options are outside this contract.
 
 ### Portable Resource Roots
 
@@ -127,8 +140,9 @@ Every resource reference is a JSON object such as
 
 - `repo` binds to the local checkout root.
 - `run` binds to a local artifact storage root, which may be outside the checkout.
-- `paths.output_dir` must use `run`. Its example value is `example`, so future
-  outputs would live below the bound run root's `example` directory.
+- `paths.output_dir` must use `run`. Its example value is `example`, so caller
+  outputs live below the bound run root's `example` directory. The smoke appends
+  a unique run ID below the configured `cpu-smoke` directory.
 - Artifact references use these same roots. They are not implicitly relative to
   `output_dir`: a file there is explicitly `run:example/models/model.onnx`.
 
@@ -165,7 +179,8 @@ local executable paths are not collected.
 Library callers can register existing files using
 `build_manifest(..., artifacts=[("input", PathRef("run", "example/input.bin"))])`.
 Each record contains `role`, `root`, `path`, `size_bytes`, and `sha256`. Files are
-read explicitly, never recursively discovered. Missing/unreadable files and
+read explicitly; the provenance collector does not recursively discover them.
+Missing/unreadable files and
 symlink escapes fail. The CLI registers no artifacts by default. Hashes identify
 the bytes read, so callers should register stable files rather than files being
 modified concurrently.
@@ -175,7 +190,8 @@ modified concurrently.
 writing files; the CLI writes UTF-8/LF bytes. Artifact and warning collections
 have stable ordering. With injected identical clock/provenance observations,
 manifest serialization is deterministic; live timestamps and environments may
-legitimately differ. No configuration hash or artifact registry is provided.
+legitimately differ. The preparation CLI registers no artifacts. The smoke
+registers its resolved configuration file alongside generated outputs.
 
 This contract does not guarantee deterministic execution. Seeds alone do not
 control all subprocesses, scheduling, sample ordering, PyTorch operations, or
@@ -184,6 +200,35 @@ depend on sample/reservoir contents. A commit plus dirty flag does not capture
 uncommitted code or ignored external inputs. Unregistered artifacts are not
 identified, and a hash does not ensure that a file remains available. Historical
 long-run reproduction and cross-runtime numerical parity are separate work.
+The NLHE model also uses Rust's `DefaultHasher` for hash-derived behavior;
+record the Rust version because the hashing algorithm is not a stable
+cross-version reproducibility contract.
+
+## Executed CPU Smoke And Artifact Flow
+
+`run_smoke.py` resolves `experiments/cpu_smoke.json`, validates a bounded CPU
+profile, and creates a new run directory. It builds locked Rust release
+binaries, then invokes `run_deep_cfr.py` with the resolved traversal, model,
+training, export, game, and path settings. This reuses the existing fresh
+advantage/strategy initialization and consolidated six-seat traversal flow.
+Each network trains from the new traversal samples and exports its checkpoint
+and ONNX model. Optional long-run diagnostics are disabled for this tiny run.
+
+The wrapper inspects retained samples, recorded optimizer work, changed model
+parameters, and ONNX tensor contracts. It then invokes `ring_game_eval` with the
+new strategy model and explicit evaluation settings. The normal Rust
+`OnnxPolicy` path loads and queries that exported artifact during simulated
+hands. The wrapper parses the existing `RING_EVAL_JSON` report into
+`evaluation.json` and checks completed-hand/outcome and zero-sum contracts.
+
+On success, the original preparation manifest becomes `phase: "completed"`
+with an `execution` section containing stage commands/status/exit codes and
+timings, Rust and Python package versions, native runtime-library identity,
+sample/step/model evidence, seeds, evaluation, and generated-byte count.
+Artifact records hash generated files, cluster inputs, and `Cargo.lock` using
+portable roots. A failed run retains partial output and records `phase:
+"failed"` when a run directory has been created. See [CPU Smoke Experiment](smoke.md)
+for output paths, verified costs, failure behavior, and repeatability limits.
 
 ## Feature Encoding
 

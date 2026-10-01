@@ -12,12 +12,22 @@ not a production poker bot or live-play assistant.
 - Limitations and responsible-use boundaries published.
 - No large raw buffers, private logs, or PyTorch checkpoints committed.
 
-## v0.2 Reproducibility Improvements
+## v0.2 Reproducible Pipeline — Prepared
 
-- Add a smaller demo configuration for local smoke runs.
-- Clarify minimal commands for traversal, training, export, and evaluation.
-- Add a result-pack validation script for expected files, hashes, and metadata.
-- Document expected runtime and disk usage for smoke workflows.
+- Versioned experiment configuration and portable preparation provenance.
+- Deterministic fresh per-network initialization.
+- Real CPU traversal, PyTorch training, ONNX export, and Rust evaluation through
+  one bounded smoke command.
+- Completed/failed execution manifests, seeds, stage status, runtime evidence,
+  artifact hashes, and structured results.
+- Python/Rust CI and focused configuration, initialization, provenance, and
+  orchestration tests.
+- Verified smoke runtime/disk observations and honest repeatability limits.
+- Existing released model and result evidence preserved.
+
+See [CPU Smoke Experiment](docs/smoke.md) and the prepared
+[v0.2 release notes](docs/release-notes-v0.2.md). Final merge and release
+publication require owner review.
 
 ## v0.3 Evaluation Improvements
 
