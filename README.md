@@ -164,8 +164,8 @@ flowchart LR
 - [Responsible Use](docs/responsible-use.md): intended and prohibited uses.
 - [v0.1 Release Notes](docs/release-notes-v0.1.md): public release summary for
   the first research snapshot.
-- [v0.2 Release Notes](docs/release-notes-v0.2.md): prepared reproducibility
-  release notes; publication follows owner review.
+- [v0.2 Release Notes](docs/release-notes-v0.2.md): merged reproducibility
+  milestone, verification evidence, and limitations.
 - [Roadmap](ROADMAP.md): conservative next steps.
 
 ## Repository Layout
