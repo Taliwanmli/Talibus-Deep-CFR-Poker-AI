@@ -1,7 +1,6 @@
 # v0.2 Reproducible Pipeline
 
-Prepared release notes. The GitHub release remains unpublished pending owner
-review and merge of the pipeline pull request.
+The reproducible CPU pipeline is implemented and merged on `main`.
 
 ## Summary
 

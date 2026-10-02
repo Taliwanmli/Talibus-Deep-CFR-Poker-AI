@@ -12,7 +12,7 @@ not a production poker bot or live-play assistant.
 - Limitations and responsible-use boundaries published.
 - No large raw buffers, private logs, or PyTorch checkpoints committed.
 
-## v0.2 Reproducible Pipeline — Prepared
+## v0.2 Reproducible Pipeline — Implemented
 
 - Versioned experiment configuration and portable preparation provenance.
 - Deterministic fresh per-network initialization.
@@ -25,9 +25,9 @@ not a production poker bot or live-play assistant.
 - Verified smoke runtime/disk observations and honest repeatability limits.
 - Existing released model and result evidence preserved.
 
-See [CPU Smoke Experiment](docs/smoke.md) and the prepared
-[v0.2 release notes](docs/release-notes-v0.2.md). Final merge and release
-publication require owner review.
+See [CPU Smoke Experiment](docs/smoke.md) and the
+[v0.2 release notes](docs/release-notes-v0.2.md). The reproducible CPU pipeline
+is implemented on `main`; future milestones below are optional and deferred.
 
 ## v0.3 Evaluation Improvements
 
