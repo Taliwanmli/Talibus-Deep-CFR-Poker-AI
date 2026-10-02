@@ -44,6 +44,7 @@ flowchart LR
     D --> E[ONNX Export]
     E --> F[Rust Runtime Inference]
     F --> G[Depth-Limited Search]
+    F --> H[Evaluation Harness]
     G --> H[Evaluation Harness]
     H --> I[Result Packs]
 ```
@@ -60,8 +61,9 @@ The pipeline is:
 8. Evaluation harness.
 9. Result packs.
 
-Future improvement: add a static architecture image or GIF for easier sharing
-outside GitHub.
+The CPU smoke follows this architecture through model-only evaluation; it does
+not run depth-limited search. Configuration and provenance connect the run's
+settings, generated samples/models, and evaluation artifacts.
 
 ## Rust Components
 
@@ -141,16 +143,26 @@ read as a poker-strength benchmark.
 
 ## What The Public Repo Can Reproduce
 
-The public repository supports lightweight verification and documentation
-review:
+The shortest real verification path after [setup](setup.md) is:
+
+```bash
+python training/deep_cfr/run_smoke.py
+```
+
+This executes CPU traversal, fresh PyTorch training, ONNX export, and Rust
+model-only inference/evaluation, then records a completed manifest and
+structured result. [CPU Smoke Experiment](smoke.md) explains outputs, observed
+cost, and reproducibility boundaries.
+
+The repository also supports faster source checks and documentation review:
 
 - Python compile checks for selected training/evaluation modules.
 - Evaluation CLI help commands.
-- Unit tests under `eval/`.
+- Unit tests under `eval/` and `training/deep_cfr/`.
 - Rust cargo checks/tests if the Rust toolchain and dependencies are available.
 - Inspection of docs and compact result-pack metadata.
 
-See [setup.md](setup.md) for the exact smoke-check commands.
+See [setup.md](setup.md#source-and-test-checks) for those commands.
 
 ## What The Public Repo Cannot Fully Reproduce Yet
 
@@ -176,8 +188,9 @@ logs, and PyTorch checkpoint files remain excluded. The public result pack
 includes compact summaries, configuration notes, environment notes, and model
 artifact hashes.
 
-Future work may improve packaging and reproducibility with smaller demo configs,
-validation scripts, and better artifact publication.
+The CPU smoke generates small local artifacts and hashes them without replacing
+the historical release. Its manifests use portable references; legacy training
+metrics and logs may contain local paths and should be reviewed before sharing.
 
 ## Responsible Use
 

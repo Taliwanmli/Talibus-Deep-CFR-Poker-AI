@@ -64,7 +64,8 @@ softmax in the model wrapper. The advantage export emits masked advantage-like
 action values that the Rust runtime can convert into a policy with regret
 matching.
 
-The Rust binaries should be run with ONNX Runtime 1.23.x or newer. If the
+The Rust binaries should be run with a compatible ONNX Runtime 1.x library
+(at least 1.23). If the
 runtime shared library is not already discoverable on the platform library
 path, set `ORT_DYLIB_PATH` to the ONNX Runtime shared library before starting
 `ring_game_eval` or `realtime_play`.
@@ -76,6 +77,8 @@ From the model directory:
 ```bash
 sha256sum -c SHA256SUMS
 ```
+
+On macOS, use `shasum -a 256 -c SHA256SUMS`.
 
 On Windows PowerShell:
 

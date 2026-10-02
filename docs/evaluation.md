@@ -17,6 +17,20 @@ The current evaluation harness supports:
 
 Scripted baselines include TAG, LAG, nit, and calling-station-like policies.
 
+## Pipeline-Health Evaluation
+
+`python training/deep_cfr/run_smoke.py` trains a tiny fresh strategy model and
+runs the existing Rust model-only ring evaluation for 12 hands against random
+scripted opponents. It records the Rust result as `evaluation.json` under its
+run directory, together with a manifest linking the result to generated models,
+samples, settings, seeds, and runtime facts.
+
+The wrapper checks that the configured hands complete, outcomes are valid, and
+the simulator utilities satisfy the zero-sum check. This verifies integration
+and regression health. The tiny model's utility/loss values do not establish
+poker strength and should not be compared with the historical long-run model.
+See [CPU Smoke Experiment](smoke.md) for the exact command and evidence.
+
 ## Main Entry Point
 
 ```bash
@@ -50,7 +64,8 @@ commands.txt
 environment.txt
 ```
 
-Each published result pack should include:
+For new research result packs, preserve these fields where available and state
+any missing evidence:
 
 - commit hash,
 - model/checkpoint path or hash,
@@ -65,6 +80,11 @@ Each published result pack should include:
 
 `results/2026-04-03-6max-longrun-opt/` contains a compact public summary of a
 long 6-max training run and a final mixed-table simulator evaluation.
+
+This historical pack preserves model hashes, settings, and recorded summaries.
+The original terminal transcript and full generated training inputs are not
+included, and an exact source commit is not recorded. Its command notes are
+context rather than a complete executable reproduction recipe.
 
 Important files:
 

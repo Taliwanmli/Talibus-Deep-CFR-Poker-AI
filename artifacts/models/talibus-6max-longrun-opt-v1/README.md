@@ -35,6 +35,8 @@ From this directory on Unix-like systems:
 sha256sum -c SHA256SUMS
 ```
 
+On macOS, use `shasum -a 256 -c SHA256SUMS`.
+
 On Windows PowerShell:
 
 ```powershell

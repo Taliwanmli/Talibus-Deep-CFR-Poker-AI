@@ -3,6 +3,9 @@
 **Research prototype for 6-max No-Limit Texas Hold'em AI systems and
 imperfect-information game evaluation.**
 
+[![Python CI](https://github.com/Taliwanmli/Talibus-Deep-CFR-Poker-AI/actions/workflows/python-ci.yml/badge.svg?branch=main)](https://github.com/Taliwanmli/Talibus-Deep-CFR-Poker-AI/actions/workflows/python-ci.yml)
+[![Rust CI](https://github.com/Taliwanmli/Talibus-Deep-CFR-Poker-AI/actions/workflows/rust-ci.yml/badge.svg?branch=main)](https://github.com/Taliwanmli/Talibus-Deep-CFR-Poker-AI/actions/workflows/rust-ci.yml)
+
 Talibus explores how to build an imperfect-information game AI system around a
 Rust poker simulation/runtime stack, a Deep-CFR-style training pipeline,
 PyTorch models, ONNX deployment, scripted opponent evaluation, and
@@ -14,6 +17,25 @@ automation tool, or platform-rule bypass tool. It does not claim solved poker,
 superhuman play, production readiness, real-world profitability, or proven
 multiplayer Deep CFR convergence.
 
+## Run The Pipeline
+
+With Rust stable, a native build toolchain, and the [Python requirements
+installed](docs/setup.md#python-environment), run from the repository root:
+
+```bash
+python training/deep_cfr/run_smoke.py
+```
+
+This CPU-only check builds the required Rust binaries, generates real traversal
+samples, trains fresh PyTorch advantage and strategy networks, exports ONNX,
+and evaluates the new strategy model through Rust inference. It prints the run
+directory, completed manifest, and structured result. No CUDA or historical
+training buffers are needed.
+
+See [CPU Smoke Experiment](docs/smoke.md) for outputs, observed runtime/disk use,
+and reproducibility limits. The tiny run verifies pipeline health; it does not
+measure poker strength.
+
 ## Plain-English Summary
 
 Poker is an imperfect-information game: the agent must make decisions while
@@ -24,18 +46,18 @@ kind of decision problem.
 
 ## Status
 
-This is a public research snapshot. Documentation, result-pack interpretation,
-responsible-use framing, compact result evidence, and trained ONNX model
-artefacts are available. Large generated buffers, raw logs, and PyTorch
-checkpoints are excluded because they are generated artefacts.
+The repository includes a real CPU end-to-end verification path, experiment
+configuration and provenance tooling, Python/Rust tests and CI, documentation,
+compact controlled simulator results, and trained ONNX model artefacts. Large
+generated buffers, raw logs, and PyTorch checkpoints are excluded from Git.
 
 The repository includes the released Talibus 6-max long-run ONNX models under
 `artifacts/models/talibus-6max-longrun-opt-v1/`, together with model
 specifications, SHA-256 hashes, and usage instructions.
 
-The repository is reviewable and buildable in parts. Full long-run reproduction
-requires generated training data, configured dependencies, and substantial
-compute.
+The small smoke pipeline can run from a development checkout after setup. Full
+historical long-run reproduction still requires generated training data,
+configured dependencies, and substantial compute.
 
 ## Trained Model Release
 
@@ -92,6 +114,8 @@ Talibus combines Rust and Python components:
 - ONNX model deployment into a Rust runtime.
 - Imperfect-information game abstraction.
 - Evaluation harness design for controlled simulator experiments.
+- Versioned experiment configuration, artifact hashing, and execution provenance.
+- Mixed-language integration verified by a real CPU pipeline and automated tests.
 - Responsible claim framing for AI/game research artifacts.
 
 ## Highlights
@@ -117,6 +141,7 @@ flowchart LR
     D --> E[ONNX Export]
     E --> F[Rust Runtime Inference]
     F --> G[Depth-Limited Search]
+    F --> H[Evaluation Harness]
     G --> H[Evaluation Harness]
     H --> I[Result Packs]
 ```
@@ -128,6 +153,8 @@ flowchart LR
   of the system, evaluation framing, reproducibility boundaries, and
   responsible-use context.
 - [Setup](docs/setup.md): installation, checks, and common commands.
+- [CPU Smoke Experiment](docs/smoke.md): the end-to-end verification command,
+  output artifacts, provenance, and determinism boundaries.
 - [Model Release](docs/model_release.md): released ONNX artefacts, tensor
   shapes, hashes, usage commands, and metric interpretation.
 - [Evaluation](docs/evaluation.md): evaluation harnesses and published result
@@ -137,6 +164,8 @@ flowchart LR
 - [Responsible Use](docs/responsible-use.md): intended and prohibited uses.
 - [v0.1 Release Notes](docs/release-notes-v0.1.md): public release summary for
   the first research snapshot.
+- [v0.2 Release Notes](docs/release-notes-v0.2.md): prepared reproducibility
+  release notes; publication follows owner review.
 - [Roadmap](ROADMAP.md): conservative next steps.
 
 ## Repository Layout
@@ -148,6 +177,8 @@ eval/                          Python evaluation helpers and regression tests
 results/                       Compact public result packs
 solver/                        Rust workspace for game, CFR, and runtime code
 training/deep_cfr/             PyTorch training and long-run orchestration
+training/deep_cfr/experiments/  Portable experiment configurations
+training/deep_cfr/run_smoke.py  CPU end-to-end verification command
 run_eval_suite.py              Structured 6-max evaluation runner
 deep_cfr_watchdog.ps1          Windows helper for long training runs
 ```
@@ -182,65 +213,36 @@ python -m pip install -r eval\requirements.txt
 Build and test the Rust workspace:
 
 ```bash
-cd solver
-cargo check --workspace
-cargo test -p cfr
-cargo test -p abstraction
-cargo build --release -p deep_cfr --bin ring_game_eval --bin realtime_play
+cargo check --manifest-path solver/Cargo.toml --workspace --locked
+cargo test --manifest-path solver/Cargo.toml --workspace --locked
+cargo build --manifest-path solver/Cargo.toml --release --locked -p deep_cfr --bin ring_game_eval --bin realtime_play
 ```
 
 Run Python checks from the repository root:
 
 ```bash
-python -m compileall -q .
+python -m compileall -q training/deep_cfr eval run_eval_suite.py
 python -m unittest discover eval
+python -m unittest discover -s training/deep_cfr -p "test_*.py"
 python run_eval_suite.py --help
 ```
 
 See `docs/setup.md` for platform notes, ONNX Runtime details, and the longer
 verification checklist.
 
-## Quick Verification / Smoke Checks
+## Quick Verification
 
-The repository includes a trained ONNX strategy model, so users can run a
-small scripted-opponent smoke evaluation after building the Rust runtime
-binaries. Full long-run reproduction still requires generated training data and
-substantial compute.
+After [setup](docs/setup.md), run `python training/deep_cfr/run_smoke.py`.
+The checked-in [CPU profile](training/deep_cfr/experiments/cpu_smoke.json)
+drives traversal, training, ONNX export, and a 12-hand Rust model-only
+evaluation. Each invocation creates a fresh directory under
+`data/experiments/cpu-smoke/` and records settings, seeds, stage exit codes,
+runtime facts, and artifact SHA-256 hashes in `manifest.json`.
 
-The lightweight source checks below verify that the Python modules parse, the
-evaluation CLIs are discoverable, and the fast evaluation tests pass.
-
-After installing the Python requirements, run from the repository root:
-
-```bash
-python3 -m py_compile \
-  training/deep_cfr/model.py \
-  training/deep_cfr/train.py \
-  training/deep_cfr/reservoir.py \
-  training/deep_cfr/run_deep_cfr.py \
-  run_eval_suite.py
-
-python3 run_eval_suite.py --help
-python3 -m eval.run_league --help
-python3 -m unittest discover eval
-```
-
-On systems where `python` points to Python 3, use `python` instead of
-`python3`. These commands do not start long training jobs, do not require a
-trained ONNX model, and do not generate large artifacts.
-
-After building the Rust binaries, a short trained-model smoke run can be
-started from the repository root:
-
-```bash
-solver/target/release/ring_game_eval \
-  --model artifacts/models/talibus-6max-longrun-opt-v1/strategy_shared_best_ring.onnx \
-  --policy strategy \
-  --cluster-dir checkpoints/nlhe_clusters \
-  --num-players 6 \
-  --hands 100 \
-  --opponent tag
-```
+[CPU Smoke Experiment](docs/smoke.md) explains how to inspect a completed run.
+[Setup](docs/setup.md#source-and-test-checks) lists the faster source/unit checks;
+[Model Release](docs/model_release.md#running-the-released-strategy-model)
+contains separate commands for the historical released model.
 
 ## Training
 

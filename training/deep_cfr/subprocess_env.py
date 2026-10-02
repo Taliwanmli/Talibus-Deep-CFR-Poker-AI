@@ -10,13 +10,11 @@ from typing import Mapping
 
 
 def resolve_ort_dylib_path() -> str | None:
-    """Return the ONNX Runtime DLL path on Windows if available."""
-    if not sys.platform.startswith("win"):
-        return None
+    """Find the native ORT library bundled with the active Python environment."""
     override = os.environ.get("DEEP_CFR_ORT_DYLIB_PATH", "").strip()
     if override:
         override_path = Path(override)
-        if override_path.exists():
+        if override_path.is_file():
             return str(override_path)
     try:
         import onnxruntime  # type: ignore
@@ -24,9 +22,17 @@ def resolve_ort_dylib_path() -> str | None:
         return None
 
     package_root = Path(onnxruntime.__file__).resolve().parent
-    dll_path = package_root / "capi" / "onnxruntime.dll"
-    if dll_path.exists():
-        return str(dll_path)
+    capi_dir = package_root / "capi"
+    if sys.platform.startswith("win"):
+        candidates = [capi_dir / "onnxruntime.dll"]
+    elif sys.platform == "darwin":
+        candidates = sorted(capi_dir.glob("libonnxruntime*.dylib"))
+    else:
+        candidates = sorted(capi_dir.glob("libonnxruntime.so*"))
+    # Symlinks may expose the same library under several versioned names.
+    libraries = {path.resolve() for path in candidates if path.is_file()}
+    if len(libraries) == 1:
+        return str(libraries.pop())
     return None
 
 
@@ -63,7 +69,7 @@ def resolve_runtime_dependency_dirs() -> list[str]:
 
 
 def build_subprocess_env(base_env: Mapping[str, str] | None = None) -> dict[str, str]:
-    """Build a subprocess environment with robust UTF-8 and ORT DLL settings."""
+    """Build a subprocess environment with UTF-8 and native ORT settings."""
     env = dict(base_env) if base_env is not None else dict(os.environ)
     env.setdefault("PYTHONUTF8", "1")
     env.setdefault("PYTHONIOENCODING", "utf-8")

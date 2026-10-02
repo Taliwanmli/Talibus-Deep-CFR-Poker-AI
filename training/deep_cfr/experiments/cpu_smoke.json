@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "name": "cpu-smoke",
+  "seed": 42,
+  "game": {"num_players": 6, "starting_stack": 60, "small_blind": 10, "big_blind": 20},
+  "run": {"iterations": 1, "strategy_every": 1},
+  "model": {"hidden_dim": 32, "bottleneck_dim": 16, "dropout_p": 0.1},
+  "traversal": {"traversals": 2, "deck_samples": 2, "workers": 1, "progress_batch": 1,
+                "seat_chunks": 1, "consolidate_processes": true},
+  "training": {"training_steps": 2, "batch_size": 8, "lr": 0.0005, "weight_decay": 0.0001,
+               "buffer_size": 64, "max_sample_reuse_per_iter": 6.0, "adv_huber_delta": 20.0},
+  "execution": {"device": "cpu"},
+  "export": {"onnx_opset": 17},
+  "evaluation": {"hands": 12, "deck_samples": 2, "workers": 1, "opponent": "random",
+                 "seed": 43, "model_seat": 0},
+  "paths": {"cluster_dir": {"root": "repo", "path": "checkpoints/nlhe_clusters"},
+            "output_dir": {"root": "run", "path": "cpu-smoke"}}
+}

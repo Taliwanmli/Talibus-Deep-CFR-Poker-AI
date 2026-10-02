@@ -10,10 +10,11 @@ This document describes the development setup for Talibus.
 - Enough disk space for generated `data/` artifacts if running training.
 - Optional CUDA-capable GPU for larger PyTorch training runs.
 
-The Rust runtime uses `ort` 2.0.0-rc.11 for ONNX inference. Use ONNX Runtime
-1.23.x or newer, and make the shared library available to the binaries if it
-is not on the platform library path. For example, set `ORT_DYLIB_PATH` to the
-ONNX Runtime shared library before running binaries that load `.onnx` models.
+The Rust runtime uses `ort` 2.0.0-rc.11 for ONNX inference. Use a compatible
+ONNX Runtime 1.x library (at least 1.23). The CPU smoke wrapper discovers the
+native library bundled with Python `onnxruntime` on macOS, Linux, and Windows.
+Direct Rust binary invocations require the library on the platform library
+path or `ORT_DYLIB_PATH` set to its actual `.dylib`, `.so`, or `.dll` location.
 
 ## Python Environment
 
@@ -39,77 +40,53 @@ python -m pip install -r eval\requirements.txt
 
 ## Rust Build
 
-From `solver/`:
+The CPU smoke command builds its required Rust binaries automatically. For
+manual development checks, run from the repository root:
 
 ```bash
-cargo check --workspace
-cargo test -p cfr
-cargo test -p abstraction
-cargo build --release -p deep_cfr --bin run_traversals
-cargo build --release -p deep_cfr --bin ring_game_eval
-cargo build --release -p deep_cfr --bin realtime_play
+cargo check --manifest-path solver/Cargo.toml --workspace --locked
+cargo test --manifest-path solver/Cargo.toml --workspace --locked
+cargo build --manifest-path solver/Cargo.toml --release --locked -p deep_cfr --bin run_traversals --bin ring_game_eval --bin realtime_play
 ```
 
-## Smoke Checks
+## CPU End-To-End Verification
 
-The repository includes a trained ONNX strategy model under
-`artifacts/models/talibus-6max-longrun-opt-v1/`. Full long-run
-training/evaluation still requires generated local artifacts and substantial
-compute, but lightweight source and model smoke checks are available.
-
-The checks below are the closest lightweight verification path. They verify
-that key Python modules parse, command-line entry points are discoverable, and
-the fast evaluation tests pass without launching training jobs or creating
-large artifacts.
-
-From the repository root, after installing the Python requirements:
+After installing the Python requirements, run from the repository root:
 
 ```bash
-python3 -m py_compile \
-  training/deep_cfr/model.py \
-  training/deep_cfr/train.py \
-  training/deep_cfr/reservoir.py \
-  training/deep_cfr/run_deep_cfr.py \
-  run_eval_suite.py
+python training/deep_cfr/run_smoke.py
 ```
 
-Verifies that the selected training/evaluation Python files parse correctly.
+This is the shortest real pipeline check: traversal/sample generation, fresh
+PyTorch training, ONNX export, Rust loading/inference, and structured model-only
+evaluation. No CUDA, historical buffers, or released model is required. The
+checked-in CPU configuration controls the run. Outputs and a completed manifest
+are printed and stored under `data/experiments/cpu-smoke/<run-id>/`.
+
+See [CPU Smoke Experiment](smoke.md) for configuration bounds, observed runtime
+and disk use, failure handling, artifacts, and reproducibility guarantees.
+
+## Source And Test Checks
+
+Faster checks from the repository root verify source, CLI discovery, and unit
+contracts without executing the complete training/runtime pipeline:
 
 ```bash
-python3 run_eval_suite.py --help
+python -m pip check
+python -m compileall -q training/deep_cfr eval run_eval_suite.py
+python run_eval_suite.py --help
+python -m eval.run_league --help
+python training/deep_cfr/run_deep_cfr.py --help
+python training/deep_cfr/run_smoke.py --help
+python -m unittest discover eval
+python -m unittest discover -s training/deep_cfr -p "test_*.py"
 ```
 
-Verifies that the structured evaluation-suite CLI is importable and exposes its
-options without requiring a model artifact.
-
-```bash
-python3 -m eval.run_league --help
-```
-
-Verifies that the offline evaluation CLI is importable and exposes its options.
-Some environments may print a Gym deprecation warning; the smoke check still
-passes if the command exits successfully.
-
-```bash
-python3 -m unittest discover eval
-```
-
-Runs the fast Python evaluation tests. These tests do not require trained ONNX
-models or long generated training buffers.
-
-On systems where `python` points to Python 3, use `python` instead of
-`python3`.
-
-Optional Rust verification, if Cargo is installed:
-
-```bash
-cd solver
-cargo check --workspace
-```
-
-This checks the Rust workspace without running training or evaluation. It may
-take longer on a first build because Cargo has to download and compile
-dependencies.
+These tests do not require the released model or long training buffers. Some
+evaluation commands may print upstream dependency warnings; use exit status to
+determine success. [Contributing](../CONTRIBUTING.md#basic-checks) lists the Rust
+formatting, lint, and test commands used by CI. Dependency downloads and first
+compilation take additional time.
 
 ## Training Entry Point
 
@@ -120,8 +97,8 @@ python training/deep_cfr/run_deep_cfr.py --help
 ```
 
 A full 6-max run requires compiled Rust traversal binaries, cluster assets,
-and a writable `data/` directory. Use small smoke settings first before
-starting a long run.
+and a writable `data/` directory. Use the bounded CPU smoke command first;
+long-run reproduction is a separate, substantially larger workflow.
 
 ## Preparing An Experiment Manifest
 
@@ -141,8 +118,9 @@ The command creates no output directory or artifact. It does not launch
 traversal, train a model, export ONNX, load Rust runtime models, or evaluate
 poker. It requires neither compiled Rust binaries nor CUDA. The example's small
 budgets are illustrative settings, not evidence of training quality or a tested
-end-to-end smoke experiment. Existing training/evaluation CLIs do not yet consume
-the new configuration.
+end-to-end smoke experiment. `run_smoke.py` consumes this contract for the real
+CPU workflow and adds executed-stage evidence to a completed/failed manifest.
+General long-run training/evaluation CLIs retain their existing flag interfaces.
 
 Optional overrides are `--seed` and `--output-dir` (a portable run-relative
 path). `--run-root` binds local artifact storage, including storage outside the
