@@ -25,8 +25,8 @@ Python and Rust binaries, so the same project layout works locally and remotely.
 Clone the repository on the remote machine:
 
 ```powershell
-git clone https://github.com/Taliwanmli/Talibus-Poker-AI.git Talibus-Poker-AI
-Set-Location Talibus-Poker-AI
+git clone https://github.com/Taliwanmli/Talibus-Deep-CFR-Poker-AI.git
+Set-Location Talibus-Deep-CFR-Poker-AI
 ```
 
 Create the Python environment:

@@ -69,6 +69,27 @@ requires export/runtime dependencies and a Rust release build.
 
 ## Pull Request Guidance
 
-Keep pull requests focused and include the commands you ran. If a change affects
-result interpretation, update `docs/evaluation.md`, `docs/limitations.md`, and
-`docs/responsible-use.md` as needed.
+Keep changes narrow enough to review. Describe the problem, resulting behavior,
+important design decisions, verification commands and outcomes, and remaining
+limitations. Link relevant issues and evidence; distinguish checks actually run
+from planned checks. If a change affects result interpretation, update
+[Evaluation](docs/evaluation.md), [Limitations](docs/limitations.md), and
+[Responsible Use](docs/responsible-use.md) as needed.
+
+## Issues And Repository Maintenance
+
+- Write issue titles around the engineering problem. Include technical context,
+  scope, acceptance criteria, and dependencies where relevant.
+- Use descriptive branches such as `fix/seed-initialization`,
+  `docs/runtime-setup`, or `chore/repository-hygiene`. Prefer technical commit
+  subjects with prefixes such as `fix:`, `test:`, `docs:`, or `ci:`.
+- Keep public descriptions focused on technical decisions and evidence. Keep
+  private planning notes, assistant prompts, and personal learning notes outside
+  the repository. Preserve attribution and development provenance, including
+  relevant AI-assistance disclosures; do not imply reviews or checks occurred
+  without evidence.
+- Update stale status instructions after completion while retaining links,
+  measurements, limitations, and substantive discussion.
+- Delete a merged branch only after checking for work added after its PR merged
+  and confirming that its changes are retained on the default branch. Preserve
+  active/protected branches, published history, tags, and releases.

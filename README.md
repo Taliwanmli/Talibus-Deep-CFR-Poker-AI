@@ -51,10 +51,6 @@ configuration and provenance tooling, Python/Rust tests and CI, documentation,
 compact controlled simulator results, and trained ONNX model artefacts. Large
 generated buffers, raw logs, and PyTorch checkpoints are excluded from Git.
 
-The repository includes the released Talibus 6-max long-run ONNX models under
-`artifacts/models/talibus-6max-longrun-opt-v1/`, together with model
-specifications, SHA-256 hashes, and usage instructions.
-
 The small smoke pipeline can run from a development checkout after setup. Full
 historical long-run reproduction still requires generated training data,
 configured dependencies, and substantial compute.
@@ -90,33 +86,10 @@ budget, 200 deck samples, and scripted opponents in the order TAG, calling
 station, LAG, nit, TAG. Within that setup, the seat results ranged from
 3664.615 to 6222.160 bb/100, averaging 5008.903 bb/100.
 
-Those are strong results for this scripted simulator setting, but they are not
-evidence of real-money profitability, human-level strength, commercial solver
-quality, or superhuman play.
-
-## Technical Summary
-
-Talibus combines Rust and Python components:
-
-- a Rust 6-max NLHE simulation/runtime stack,
-- imperfect-information state wrappers and fixed action abstraction,
-- Deep-CFR-style traversal and sample generation,
-- PyTorch training for neural strategy components,
-- ONNX export for Rust-side model inference,
-- depth-limited runtime search over a neural policy,
-- controlled simulator evaluation against scripted baselines,
-- compact public result packs for reproducibility review.
-
-## What This Demonstrates
-
-- Rust simulation/runtime engineering.
-- Python/PyTorch ML training pipeline work.
-- ONNX model deployment into a Rust runtime.
-- Imperfect-information game abstraction.
-- Evaluation harness design for controlled simulator experiments.
-- Versioned experiment configuration, artifact hashing, and execution provenance.
-- Mixed-language integration verified by a real CPU pipeline and automated tests.
-- Responsible claim framing for AI/game research artifacts.
+These measurements apply to that scripted simulator setting. The result pack
+does not include confidence intervals and does not establish real-money
+profitability, human-level strength, commercial solver quality, or superhuman
+play. See [Evaluation](docs/evaluation.md) for the per-seat results and limits.
 
 ## Highlights
 
@@ -271,25 +244,10 @@ baselines. They are useful for regression testing and research comparison, but
 they are not evidence of real-money performance, human-level strength, or
 solver-level strength.
 
-Included public result pack:
-
-- `results/2026-04-03-6max-longrun-opt/`
-
-That pack contains a sanitized summary of a 6-max mixed-table simulator
-evaluation using the released `strategy_shared_best_ring.onnx` artifact. The six
-seat-rotation runs used 1,000 hands per seat, a 2,000 ms search budget, 200 deck
-samples, and scripted mixed opponents: TAG, calling station, LAG, nit, TAG.
-
-**Result interpretation warning:** the reported seat bb/100 values are
-controlled simulator measurements against scripted baseline opponents. They are
-useful for regression and evaluation inside this codebase only. They are not
-evidence of real-money performance, human-level play, solver-level play, or
-general poker strength.
-
-Within that limited setup, the reported seat bb/100 values range from 3664.615
-to 6222.160, averaging 5008.903 bb/100 across seats.
-
-See `docs/evaluation.md` for result-file meanings and interpretation guidance.
+The [historical result pack](results/2026-04-03-6max-longrun-opt/README.md)
+contains the mixed-table measurements summarized above, model hashes, and
+recorded settings. See [Evaluation](docs/evaluation.md) for result-file meanings
+and the limits of historical reproduction.
 
 ## Additional Notes
 
